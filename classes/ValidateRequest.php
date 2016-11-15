@@ -18,7 +18,7 @@
  * @requirements        probably php >= 5.3?
  *
  **/
- 
+
 namespace mpForm;
 
 class ValidateRequest
@@ -66,6 +66,8 @@ class ValidateRequest
 	 *		- not_0		Value as to be NOT 0
 	 *		- int		Value has to be numeric
 	 *		- str		Value has to be a string 
+	 *		- str!		Value has to be not an empty string (at last one char)
+	 *		- expr		Value has to match a regExpr ('pattern' has to be set!)
 	 *
 	 *		if "values" is set, the value itself has to be one of the given values inside the array. 
 	 */
@@ -86,7 +88,17 @@ class ValidateRequest
 		return true;
 	}
 	
-	static public function validateValue( $sName, &$options=array(), &$aSource = array() ) 
+	/**
+	 *	Function to test one given key against a given assoc. array.
+	 *
+	 *	@param	string	Any key we're looking for to test.
+	 *	@param	array 	Assoc. array with the options for the "requested" value.
+	 *	@param	array 	The source
+	 *
+	 *	@return	bool	True if the type match, otherwise false 
+	 * 	
+	 */
+	static public function validateValue( $sName, &$aOptions=array(), &$aSource = array() ) 
 	{
 		$bRetValue = true;
 
@@ -95,7 +107,7 @@ class ValidateRequest
 			$bRetValue = false;
 		}
 
-		switch( $options['type'] )
+		switch( $aOptions['type'] )
 		{
 			case 'not_0':
 				if( $aSource[ $sName ] === 0 ) $bRetValue = false;
@@ -106,9 +118,9 @@ class ValidateRequest
 				{
 					$bRetValue = false;
 				}
-				elseif (isset($options['values']))
+				elseif (isset($aOptions['values']))
 				{
-					if(!in_array( $aSource[ $sName ], $options['values'] ))
+					if(!in_array( $aSource[ $sName ], $aOptions['values'] ))
 					{
 						$bRetValue = false;
 					}
@@ -120,12 +132,35 @@ class ValidateRequest
 				{
 					$bRetValue = false;
 				}
-				elseif (isset($options['values']))
+				elseif (isset($aOptions['values']))
 				{
-					if(!in_array( $aSource[ $sName ], $options['values'] ))
+					if(!in_array( $aSource[ $sName ], $aOptions['values'] ))
 					{
 						$bRetValue = false;
 					}
+				}
+				break;
+			
+			case 'str!':
+			case 'str not empty':
+				if(!is_string( $aSource[ $sName ]))
+				{
+					$bRetValue = false;
+				}
+				elseif ( $aSource[ $sName ] === "" )
+				{
+					$bRetValue = false;
+				}
+				break;
+				
+			case 'expr':
+				if(!is_string( $aSource[ $sName ]))
+				{
+					$bRetValue = false;
+				}
+				elseif ( 1 !== preg_match($aOptions['pattern'], $aSource[ $sName]) )
+				{
+					$bRetValue = false;
 				}
 				break;
 			

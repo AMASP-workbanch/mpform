@@ -24,145 +24,113 @@ $aJsonRespond = array();
 $aJsonRespond['message'] = 'ajax operation failed';
 $aJsonRespond['success'] = FALSE;
 
-    if(!isset($_POST['action']) )
-    {
-        $aJsonRespond['message'] = '"action" was not set';
-        exit(json_encode($aJsonRespond));
-    }
+if(!isset($_POST['action']) )
+{
+	$aJsonRespond['message'] = '"action" was not set';
+	exit(json_encode($aJsonRespond));
+}
 
-	/**
-	 *	A simple mini-validator function
-	 */
-	function mpFormTestPost( $aFields, &$respose ) {
-		foreach ($aFields as $key=>$options) {
-			if( !isset($_POST[ $key ]) ) {
-				$respose['message'] = "key not submitted";
-				return false;
-			}
-			
-			switch( $options['type'] ) {
-				case 'not_0':
-					if( $_POST[ $key ] === 0 ) return false;
-					break;
-				
-				case 'int':
-					if(!is_numeric($_POST[ $key ])) return false;
-					break;
+/**
+ *	A list for the $_POST values/keys we want to test.
+ */
+$fields = array(
+	'iRecordID' 		=> array( 'type' => 'not_0' ),
+	'iSectionID' 		=> array( 'type' => 'int' ),
+	'purpose'			=> array( 'type' => 'str' ),
+	'DB_RECORD_TABLE'	=> array( 'type' => 'str' , 'values' => array( 'mpform_fields' , 'mpform_submissions' ) ),
+	'DB_COLUMN'			=> array( 'type' => 'str' , 'values' => array( 'field_id', 'submission_id' ) ),
+	'MODULE'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) )
+);
+
+/**
+ *	check if the posted values  are set.
+ *	using a simple validator class 
+ */
+require_once( dirname(dirname(__FILE__))."/classes/ValidateRequest.php");
+
+if ( true === mpForm\ValidateRequest::testValues( $fields) )
+{
+	// require config for Core Constants
+	require('../../../config.php');
+	// retrieve Data from ajax data string
+	$sDbRecordTable  = TABLE_PREFIX."mod_".$_POST['DB_RECORD_TABLE'];
+	$sDbColumn  = $_POST['DB_COLUMN'];
+	$iRecordID = $_POST['iRecordID'];
+	$sModuleDIR  = $_POST['MODULE'];    
 		
-				case 'str':
-					if(!is_string( $_POST[ $key ]))  return false;
-					if(isset($options['values'])) {
-						if(!in_array( $_POST[ $key ], $options['values'] )) return false;
-					}
-					break;
-			
-				default:
-					// no "type" match
-					return false;
-			}
-		}
-		return true;
+	require_once(WB_PATH.'/framework/class.admin.php');
+	$admin = new admin('Modules', 'module_view', FALSE, FALSE);    
+	if(!is_numeric($iRecordID)) {
+		if(method_exists( $admin, 'checkIDKEY' ))
+		   $iRecordID = $admin->checkIDKEY($iRecordID,-1,'key',true);
+		   else $iRecordID = -1;
 	}
 
-	/**
-	 *	A list for the $_POST values/keys we want to test.
-	 */
-	$fields = array(
-		'iRecordID' 		=> array( 'type' => 'not_0' ),
-		'iSectionID' 		=> array( 'type' => 'int' ),
-		'purpose'			=> array( 'type' => 'str' ),
-		'DB_RECORD_TABLE'	=> array( 'type' => 'str' , 'values' => array( 'mpform_fields' , 'mpform_submissions' ) ),
-		'DB_COLUMN'			=> array( 'type' => 'str' , 'values' => array( 'field_id', 'submission_id' ) ),
-		'MODULE'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) )
-	);
+	// Check if user has enough rights to do this:
+	if (!($admin->is_authenticated() && $admin->get_permission($sModuleDIR, 'module'))) 
+	{
+		$aJsonRespond['message'] = 'You\'re not allowed to make changes to this Module: '.$sModuleDIR;        
+		$aJsonRespond['success'] = FALSE;
+		exit(json_encode($aJsonRespond));
+	}
 	
+} else {
+	$aJsonRespond['message'] = 'Post arguments missing';
+	$aJsonRespond['success'] = FALSE;
+	exit(json_encode($aJsonRespond));
+}
 
-	// check if arguments are set
-	if ( true === mpFormTestPost( $fields, $aJsonRespond ) )
-    {
-        // require config for Core Constants
-        require('../../../config.php');
-        // retrieve Data from ajax data string
-        $sDbRecordTable  = TABLE_PREFIX."mod_".$_POST['DB_RECORD_TABLE'];
-        $sDbColumn  = $_POST['DB_COLUMN'];
-        $iRecordID = $_POST['iRecordID'];
-        $sModuleDIR  = $_POST['MODULE'];    
-            
-        require_once(WB_PATH.'/framework/class.admin.php');
-        $admin = new admin('Modules', 'module_view', FALSE, FALSE);    
-        if(!is_numeric($iRecordID)) {
-            if(method_exists( $admin, 'checkIDKEY' ))
-               $iRecordID = $admin->checkIDKEY($iRecordID,-1,'key',true);
-               else $iRecordID = -1;
-        }
-
-        // Check if user has enough rights to do this:
-        if (!($admin->is_authenticated() && $admin->get_permission($sModuleDIR, 'module'))) 
-        {
-            $aJsonRespond['message'] = 'You\'re not allowed to make changes to this Module: '.$sModuleDIR;        
-            $aJsonRespond['success'] = FALSE;
-            exit(json_encode($aJsonRespond));
-        }
-        
-    } else {
-        $aJsonRespond['message'] = 'Post arguments missing';
-        $aJsonRespond['success'] = FALSE;
-        exit(json_encode($aJsonRespond));
-    }
-
-    switch ($_POST['purpose'])
-    {
-        case 'toggle_status':
-            // Check the Parameters
-            if(!is_numeric($iRecordID) || !isset($_POST['action']) || !(($_POST['action'] == 'readonly') || !($_POST['action'] == 'required') || !($_POST['action'] == 'optional') || !($_POST['action'] == 'disabled'))) {
-                $aJsonRespond['message'] = 'failed';
-                exit(json_encode($aJsonRespond));
-            }
-            
-            switch($_POST['action']){
-                case 'optional':    $status = 0;    break;
-                case 'required':    $status = 1;    break;
-                case 'readonly':    $status = 2;    break;
-                case 'disabled':    $status = 4;    break;
-            } 
-            $query = "UPDATE `".$sDbRecordTable."`"
-               . " SET `required` = '".$status."'"
-               . " WHERE `".$sDbColumn."` = '".$iRecordID."' LIMIT 1";
-            $database->query($query);
-            if($database->is_error()) {
-                $aJsonRespond['message'] = 'db query failed';
-                exit(json_encode($aJsonRespond));
-            }else{
-                $aJsonRespond['message'] = ''.$_POST['action'].'_field';
-            }
-                    
-        break;    
-        case 'delete_record':
-            // Check the Parameters
-            if(isset($_POST['action']) && $_POST['action'] == 'delete')    {
-                            
-                $query = "DELETE FROM `".$sDbRecordTable."` WHERE `".$sDbColumn."` = '".$iRecordID."' LIMIT 1";
-                $database->query($query);
-                if($database->is_error()) 
-                {
-                    $aJsonRespond['message'] = 'db query failed: '.$database->get_error();
-                    exit(json_encode($aJsonRespond));
-                } else {            
-                    $aJsonRespond['message'] = 'Record deleted successfully ';
-                }
-                // Clean up ordering after deletion
-                require(WB_PATH.'/framework/class.order.php');
-                $order = new order($sDbRecordTable, 'position', $sDbColumn, 'section_id');
-                $order->clean($_POST['iSectionID']); 
-            }
-            else{
-                $aJsonRespond['message'] = "can't delete from list";
-                exit(json_encode($aJsonRespond));
-            }                
-        break;
-    }
-
-
+switch ($_POST['purpose'])
+{
+	case 'toggle_status':
+		// Check the Parameters
+		if(!is_numeric($iRecordID) || !isset($_POST['action']) || !(($_POST['action'] == 'readonly') || !($_POST['action'] == 'required') || !($_POST['action'] == 'optional') || !($_POST['action'] == 'disabled'))) {
+			$aJsonRespond['message'] = 'failed';
+			exit(json_encode($aJsonRespond));
+		}
+		
+		switch($_POST['action']){
+			case 'optional':    $status = 0;    break;
+			case 'required':    $status = 1;    break;
+			case 'readonly':    $status = 2;    break;
+			case 'disabled':    $status = 4;    break;
+		} 
+		$query = "UPDATE `".$sDbRecordTable."`"
+		   . " SET `required` = '".$status."'"
+		   . " WHERE `".$sDbColumn."` = '".$iRecordID."' LIMIT 1";
+		$database->query($query);
+		if($database->is_error()) {
+			$aJsonRespond['message'] = 'db query failed';
+			exit(json_encode($aJsonRespond));
+		}else{
+			$aJsonRespond['message'] = ''.$_POST['action'].'_field';
+		}
+				
+	break;    
+	case 'delete_record':
+		// Check the Parameters
+		if(isset($_POST['action']) && $_POST['action'] == 'delete')    {
+						
+			$query = "DELETE FROM `".$sDbRecordTable."` WHERE `".$sDbColumn."` = '".$iRecordID."' LIMIT 1";
+			$database->query($query);
+			if($database->is_error()) 
+			{
+				$aJsonRespond['message'] = 'db query failed: '.$database->get_error();
+				exit(json_encode($aJsonRespond));
+			} else {            
+				$aJsonRespond['message'] = 'Record deleted successfully ';
+			}
+			// Clean up ordering after deletion
+			require(WB_PATH.'/framework/class.order.php');
+			$order = new order($sDbRecordTable, 'position', $sDbColumn, 'section_id');
+			$order->clean($_POST['iSectionID']); 
+		}
+		else{
+			$aJsonRespond['message'] = "can't delete from list";
+			exit(json_encode($aJsonRespond));
+		}                
+	break;
+}
 
 // If the script is still running, set success to true
 $aJsonRespond['success'] = true;

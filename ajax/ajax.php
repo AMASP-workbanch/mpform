@@ -39,8 +39,7 @@ $fields = array(
 	'purpose'			=> array( 'type' => 'str' ),
 	'DB_RECORD_TABLE'	=> array( 'type' => 'str' , 'values' => array( 'mpform_fields' , 'mpform_submissions' ) ),
 	'DB_COLUMN'			=> array( 'type' => 'str' , 'values' => array( 'field_id', 'submission_id' ) ),
-	'MODULE'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) ),
-	'MODULE__'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) )
+	'MODULE'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) )
 );
 
 /**

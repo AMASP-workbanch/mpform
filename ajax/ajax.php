@@ -39,16 +39,18 @@ $fields = array(
 	'purpose'			=> array( 'type' => 'str' ),
 	'DB_RECORD_TABLE'	=> array( 'type' => 'str' , 'values' => array( 'mpform_fields' , 'mpform_submissions' ) ),
 	'DB_COLUMN'			=> array( 'type' => 'str' , 'values' => array( 'field_id', 'submission_id' ) ),
-	'MODULE'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) )
+	'MODULE'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) ),
+	'MODULE__'			=> array( 'type' => 'str' , 'values' => array( 'mpform' ) )
 );
 
 /**
  *	check if the posted values  are set.
  *	using a simple validator class 
  */
-require_once( dirname(dirname(__FILE__))."/classes/ValidateRequest.php");
+require_once( dirname(dirname(__FILE__))."/classes/ComplexConditions.php");
 
-if ( true === mpForm\ValidateRequest::testValues( $fields) )
+$oValidate = new LEPTON\ComplexConditions();
+if ( true === $oValidate->testValues( $fields, $_POST) )
 {
 	// require config for Core Constants
 	require('../../../config.php');
@@ -75,7 +77,7 @@ if ( true === mpForm\ValidateRequest::testValues( $fields) )
 	}
 	
 } else {
-	$aJsonRespond['message'] = 'Post arguments missing';
+	$aJsonRespond['message'] = 'Post argument(-s) missing: '.$oValidate->getErrors("\n");
 	$aJsonRespond['success'] = FALSE;
 	exit(json_encode($aJsonRespond));
 }
